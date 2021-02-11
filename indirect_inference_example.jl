@@ -92,8 +92,8 @@ Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
 ii2 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
 ii2bs = iibootstrap(β=ii2, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, J_bs=9)
 
-ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL")
-ii2bbs = iibootstrap(β=ii2b, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", J_bs=9)
+ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0)
+ii2bbs = iibootstrap(β=ii2b, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, J_bs=9)
 
 #######################
 #######################
@@ -131,6 +131,57 @@ Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
 β_grid = [β0 .+ i for i in (-.5:.01:.5)]
 
 ii3 = indirect_inference_grid(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
+
+
+
+
+
+
+#######################
+#######################
+#######################
+#######################
+
+# indirect inference example 4
+# y = (x1 + β1)^β2 + β3 (x1 * x2 + β4)^2 + ϵ
+
+ϵ = (σ -> Normal(0, σ))
+
+function y_true(β, X) 
+    σ0=1
+    f1 = (X[:,1] .+ β[1]) .^ β[2]
+    f2 = β[3] .* (X[:,1] .* X[:,2] .+ β[4]) .^ 2
+    e = rand(ϵ(σ0),size(X)[1])
+    out = f1 + f2 + e
+    return(out)
+end
+
+x = (Size -> rand(Uniform(0,1), Size))
+
+function setup_X_matrix(X)
+    a = ones(size(X)[1])
+    Xcross = X[:,1] .* X[:,2]
+    return transpose([transpose(a); transpose(X); transpose(X.^2); transpose(X.^3); transpose(X.^4); transpose(Xcross); transpose(Xcross.^2)])
+end
+
+function est_aux(Y,X)
+    z = setup_X_matrix(X)
+    return OLS(Y, z)
+end
+
+N=200
+β0=[3, 2, 1.5, 1]
+K = length(β0)
+X0 = x((N, 2))
+Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
+β_grid = [β0 .+ i for i in (-.5:.05:.5)]
+
+ii4 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
+ii4bs = iibootstrap(β=ii4, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, J_bs=9)
+
+ii4b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0)
+ii4bbs = iibootstrap(β=ii4b, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, J_bs=9)
+
 
 
 

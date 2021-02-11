@@ -15,10 +15,10 @@
 #   true_model is a generic function Y=f(β, X) describing the structural model
 #   aux_estimation is a generic function b_hat = g(Y, X) describing the auxiliary model and estimation routine
 # 
-# Optional key word arguments:
+# Semi-Optional key word arguments:
 #   search ∈ {"NL", "grid"}, Default is "NL"
-#   β_init: initial value for the "NL" estimation routine
-#   β_grid: grid of βs for the "grid" search estimation routine
+#   β_init: initial value for the "NL" estimation routine (required for search="NL")
+#   β_grid: grid of βs for the "grid" search estimation routine (required for search="grid")
 #   J: number of times to simulate from the true model
 # 
 # Output:
@@ -144,7 +144,6 @@ function indirect_inference(;Y0, X0, true_model, aux_estimation, kwargs...)
     # simple indirect inference using Optim
     # and a linearized model
     N = length(Y0)
-    K = size(X0,2)
     b0 = aux_estimation(Y0, X0) # estimate auxiliary model on data
     if :J in keys(kwargs)
         J = kwargs[:J]
@@ -168,12 +167,8 @@ function indirect_inference(;Y0, X0, true_model, aux_estimation, kwargs...)
             end
         end    
     elseif search == "NL"
-        if :β_init in keys(kwargs)
-            β_init = kwargs[:β_init]
-        else
-            β_init = zeros(K, 1)
-        end    
-        if (K==1)
+        β_init = kwargs[:β_init]
+        if (length(β_init) == 1)
             print("Univariate functions not supported at this time")
             β_hat = β_init        
         else
