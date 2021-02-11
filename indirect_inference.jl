@@ -3,6 +3,9 @@
 # Please do not modify this module without talking to me first.
 
 ###########################################
+###########################################
+#
+# Indirect Inference Estimation
 # Usage:
 # indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, kwargs)
 # 
@@ -22,9 +25,35 @@
 #   array of the structural parameter estimates
 # 
 # Examples:
-# ii2 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
-# ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL")
-# See indirect_inference_examples.jl for complete examples
+#   ii2 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
+#   ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL")
+#   See indirect_inference_examples.jl for complete examples
+#
+###########################################
+###########################################
+#
+# Indirect Inference Inference via the parameteric bootstrap
+# Usage:
+#   iibootstrap(;β, X0, true_model, aux_estimation, J_bs=9, kwargs...)
+#
+# Note:
+#   iibootstrap() should be called with the same arguments as indirect_inference()
+#
+# Arguments:
+#   J_bs: the number of bootstrap samples
+#   all other arguments are the same as indirect_inference()
+#
+# Output:
+#   Array of size J_bs x K for the J_bs estimates
+#
+# Examples:
+#   ii2 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
+#   ii2bs = iibootstrap(β=ii2, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, J_bs=99)
+#
+# Note:
+#   Not knowing the binding function that links the structural and auxiliary model parameters makes inference complicated.
+#   Hence, this implements a parameteric bootstrap.
+#   The trade-off is that this is computationally intensive.
 #
 ###########################################
 
@@ -41,7 +70,7 @@ using Optim, NLSolversBase
 
 
 
-export OLS, indirect_inference
+export OLS, indirect_inference, iibootstrap
 
 OLS = ((Y,X) -> inv(transpose(X) * X) * (transpose(X) * Y))
 
@@ -156,6 +185,21 @@ function indirect_inference(;Y0, X0, true_model, aux_estimation, kwargs...)
 end
 
 
+function iibootstrap(;β, X0, true_model, aux_estimation, J_bs=9, kwargs...)
+    # implements a parameteric bootstrap with the indirect inference estimation function
+    # Note that this is computationally intensive
+    K = length(β)
+    storage = zeros(J_bs, K)
+    for j in 1:J_bs
+        Y = true_model(β, X0)
+        est = indirect_inference(;Y0=Y, X0=X0, true_model=true_model, aux_estimation=aux_estimation, kwargs...)
+        # estimates = indirect_inference(Y0=Y, X0=X0, true_model=true_model, aux_estimation=aux_estimation, kwargs...)
+        storage[j, :] .= [est...]
+    end
+    return(storage)
+end
+
+
 function sim(β, N, x_fn, y_fn, estimation_fn, aux_estimator, β_grid, J_outer=500, J_inner=500)
     # do stuff in here
     K = length(β)
@@ -168,5 +212,6 @@ function sim(β, N, x_fn, y_fn, estimation_fn, aux_estimator, β_grid, J_outer=5
     end
     return(storage)
 end
+
 
 end # end module

@@ -18,8 +18,12 @@ using Main.IndirectInference
 
 ϵ = (σ -> Normal(0, σ)) # function to generate errors
 
-σ0=1.0
-y_true = ((β, X) -> X.^2 * β + rand(ϵ(σ0),size(X)[1])) # true model
+# σ0=1.0
+# y_true = ((β, X) -> X.^2 * β + rand(ϵ(σ0),size(X)[1])) # true model
+function y_true(β, X)
+    σ0=1.0
+    return( X.^2 * β + rand(ϵ(σ0), size(X)[1]) ) # true model
+end
 
 x = (Size -> rand(Normal(0,1), Size)) # function to generate exogenous variables
 
@@ -42,11 +46,13 @@ N=200
 K= length(β0)
 X0 = x((N, K))
 Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
-β_grid = [β0 .+ i for i in (-.5:.01:.5)]
+β_grid = [β0 .+ i for i in (-.5:.025:.5)]
 
 ii1 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
+ii1bs = iibootstrap(β=ii1, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, J_bs=9)
 
-    
+# using Plots
+# histogram(ii1bs)
 
 #######################
 #######################
@@ -84,9 +90,10 @@ Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
 β_grid = [β0 .+ i for i in (-.5:.01:.5)]
 
 ii2 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
+ii2bs = iibootstrap(β=ii2, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, J_bs=9)
 
 ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL")
-
+ii2bbs = iibootstrap(β=ii2b, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", J_bs=9)
 
 #######################
 #######################
