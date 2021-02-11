@@ -1,9 +1,32 @@
-
-
+# NOTE:
 # If you want to use structs, etc. please use a wrapper function.
 # Please do not modify this module without talking to me first.
-# See indirect_inference_examples.jl for usage and syntax
 
+###########################################
+# Usage:
+# indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, kwargs)
+# 
+# Requried key word arguments:
+#   Y0 is the outcome variable from the data
+#   X0 is the list of covariates from the data
+#   true_model is a generic function Y=f(β, X) describing the structural model
+#   aux_estimation is a generic function b_hat = g(Y, X) describing the auxiliary model and estimation routine
+# 
+# Optional key word arguments:
+#   search ∈ {"NL", "grid"}, Default is "NL"
+#   β_init: initial value for the "NL" estimation routine
+#   β_grid: grid of βs for the "grid" search estimation routine
+#   J: number of times to simulate from the true model
+# 
+# Output:
+#   array of the structural parameter estimates
+# 
+# Examples:
+# ii2 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
+# ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL")
+# See indirect_inference_examples.jl for complete examples
+#
+###########################################
 
 
 module IndirectInference
