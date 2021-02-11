@@ -165,9 +165,21 @@ function setup_X_matrix(X)
     return transpose([transpose(a); transpose(X); transpose(X.^2); transpose(X.^3); transpose(X.^4); transpose(Xcross); transpose(Xcross.^2)])
 end
 
-function est_aux(Y,X)
+function est_aux_ols(Y, X)
     z = setup_X_matrix(X)
     return OLS(Y, z)
+end
+
+function est_aux(Y, X)
+    # let's combine moments of Y with auxiliary model estimates
+    N = size(Y0)[1]
+    m1 = sum(Y) / N
+    m2 = sum((Y .- m1).^2) / (N-1)
+    m3 = sum((Y .- m1).^3) / (N-1)
+    m4 = sum((Y .- m1).^4) / (N-1)
+    b = est_aux_ols(Y, X)
+    out = [m1, m2, m3, m4, b...]
+    return out
 end
 
 N=200
@@ -175,15 +187,22 @@ N=200
 K = length(β0)
 X0 = x((N, 2))
 Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
-β_grid = [β0 .+ i for i in (-.5:.05:.5)]
+β_grid = [β0 .+ i for i in (-.5:.01:.5)]
+
+W = I(11)
+W[1:4,1:4] = zeros(4,4)
 
 ii4 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
-ii4bs = iibootstrap(β=ii4, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, J_bs=9)
+ii4 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, W=W)
+ii4bs = iibootstrap(β=ii4, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, W=W, J_bs=9)
 
 ii4b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0)
 ii4bbs = iibootstrap(β=ii4b, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=ii4b, J_bs=9)
 
 ii4c = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, optimizer=LBFGS())
+
+
+
 
 
 

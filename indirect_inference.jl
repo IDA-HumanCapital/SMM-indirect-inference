@@ -5,6 +5,7 @@
 
 # TO DO:
 # Allow estimation bounds with optim
+# Allow weighting matrix - done but probably needs some work.
 
 ###########################################
 ###########################################
@@ -24,6 +25,8 @@
 #   β_init: initial value for the "NL" estimation routine (required for search="NL")
 #   β_grid: grid of βs for the "grid" search estimation routine (required for search="grid")
 #   J: number of times to simulate from the true model
+#   optimizer: the nonlinear optimzer used by optim.  The default is Nelder-Mead
+#   W: the weighting matrix (I may change this later to get it from aux_estimation)
 # 
 # Output:
 #   array of the structural parameter estimates
@@ -95,13 +98,23 @@ OLS = ((Y,X) -> inv(transpose(X) * X) * (transpose(X) * Y))
 # end
 
 
-function auxiliary_model_sim(βi, b0, X0, true_model, aux_estimation; J=500)
+function auxiliary_model_sim(βi, b0, X0, true_model, aux_estimation; kwargs...)
     # fit the auxiliary model 
     K = size(b0)[1]
+    if :J in keys(kwargs)
+        J = kwargs[:J]
+    else
+        J = 500
+    end
     XJ = repeat(X0, J)
     Y_star = true_model(βi, XJ) # simulate from true model
     b = aux_estimation(Y_star, XJ) # estimate the auxiliary model on simulations
-    MSE = (transpose(b - b0) * (b - b0))[1] # why does julia make assignment difficult??
+    if :W in keys(kwargs)
+        W = kwargs[:W]
+    else
+        W = I(K)
+    end
+    MSE = (transpose(b - b0) * W * (b - b0))[1] # why does julia make assignment difficult??
     return MSE
 end
 
@@ -149,12 +162,7 @@ function indirect_inference(;Y0, X0, true_model, aux_estimation, kwargs...)
     # and a linearized model
     N = length(Y0)
     b0 = aux_estimation(Y0, X0) # estimate auxiliary model on data
-    if :J in keys(kwargs)
-        J = kwargs[:J]
-    else
-        J = 500
-    end
-    MSE = (βi -> auxiliary_model_sim(βi, b0, X0, true_model, aux_estimation, J=J))
+    MSE = (βi -> auxiliary_model_sim(βi, b0, X0, true_model, aux_estimation; kwargs...))
     if :search in keys(kwargs)
         search = kwargs[:search]
     else
