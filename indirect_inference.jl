@@ -2,6 +2,9 @@
 
 # If you want to use structs, etc. please use a wrapper function.
 # Please do not modify this module without talking to me first.
+# See indirect_inference_examples.jl for usage and syntax
+
+
 
 module IndirectInference
 
@@ -85,7 +88,7 @@ end
 # end
 
 
-function indirect_inference(Y0, X0, true_model, aux_estimation; kwargs...)
+function indirect_inference(;Y0, X0, true_model, aux_estimation, kwargs...)
     # simple indirect inference using Optim
     # and a linearized model
     N = length(Y0)
@@ -137,7 +140,7 @@ function sim(β, N, x_fn, y_fn, estimation_fn, aux_estimator, β_grid, J_outer=5
     for j in 1:J_outer
         X = x_fn((N,K))
         Y = y_fn(β,X)
-        estimates = estimation_fn(Y, X, y_fn, aux_estimator, J=J_inner, β_grid=β_grid)
+        estimates = estimation_fn(Y0=Y, X0=X, true_model=y_fn, aux_estimation=aux_estimator, J=J_inner, β_grid=β_grid)
         storage[j, :] .= estimates
     end
     return(storage)

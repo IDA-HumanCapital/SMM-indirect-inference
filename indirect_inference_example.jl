@@ -44,7 +44,7 @@ X0 = x((N, K))
 Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
 β_grid = [β0 .+ i for i in (-.5:.01:.5)]
 
-ii1 = indirect_inference(Y0, X0, y_true, est_aux, search="grid", β_grid=β_grid)
+ii1 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
 
     
 
@@ -83,9 +83,9 @@ X0 = x((N, K))
 Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
 β_grid = [β0 .+ i for i in (-.5:.01:.5)]
 
-ii2 = indirect_inference(Y0, X0, y_true, est_aux, search="grid", β_grid=β_grid)
+ii2 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
 
-ii2b = indirect_inference(Y0, X0, y_true, est_aux, search="NL")
+ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL")
 
 
 #######################
@@ -123,7 +123,7 @@ X0 = x((N, K))
 Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
 β_grid = [β0 .+ i for i in (-.5:.01:.5)]
 
-ii3 = indirect_inference_grid(Y0, X0, y_true, est_aux, search="grid", β_grid=β_grid)
+ii3 = indirect_inference_grid(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
 
 
 
