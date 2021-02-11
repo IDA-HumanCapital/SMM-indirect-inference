@@ -2,6 +2,10 @@
 # If you want to use structs, etc. please use a wrapper function.
 # Please do not modify this module without talking to me first.
 
+
+# TO DO:
+# Allow estimation bounds with optim
+
 ###########################################
 ###########################################
 #
@@ -172,7 +176,11 @@ function indirect_inference(;Y0, X0, true_model, aux_estimation, kwargs...)
             print("Univariate functions not supported at this time")
             β_hat = β_init        
         else
-            results = optimize(MSE, β_init)
+            if :optimizer in keys(kwargs)
+                results = optimize(MSE, β_init, kwargs[:optimizer])
+            else
+                results = optimize(MSE, β_init)
+            end
             β_hat = Optim.minimizer(results)
         end
     end

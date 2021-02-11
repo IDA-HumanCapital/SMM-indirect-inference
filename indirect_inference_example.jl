@@ -4,6 +4,7 @@ include(joinpath("estimation", "indirect_inference.jl"))
 using Statistics
 using Distributions
 using LinearAlgebra
+using Optim, NLSolversBase
 using Main.IndirectInference
 
 
@@ -180,8 +181,9 @@ ii4 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux
 ii4bs = iibootstrap(β=ii4, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, J_bs=9)
 
 ii4b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0)
-ii4bbs = iibootstrap(β=ii4b, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, J_bs=9)
+ii4bbs = iibootstrap(β=ii4b, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=ii4b, J_bs=9)
 
+ii4c = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, optimizer=LBFGS())
 
 
 
