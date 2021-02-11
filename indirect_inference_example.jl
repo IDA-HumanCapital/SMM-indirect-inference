@@ -1,7 +1,11 @@
 
 include(joinpath("estimation", "indirect_inference.jl"))
 
+using Statistics
+using Distributions
+using LinearAlgebra
 using Main.IndirectInference
+
 
 #######################
 #######################
@@ -14,7 +18,8 @@ using Main.IndirectInference
 
 ϵ = (σ -> Normal(0, σ)) # function to generate errors
 
-y_true = ((β, σ, X) -> X.^2 * β + rand(ϵ(σ),size(X)[1])) # true model
+σ0=1.0
+y_true = ((β, X) -> X.^2 * β + rand(ϵ(σ0),size(X)[1])) # true model
 
 x = (Size -> rand(Normal(0,1), Size)) # function to generate exogenous variables
 
@@ -32,16 +37,14 @@ function est_aux(Y,X)
 end
 
 
-J=500
 N=200
-σ0=1.0
 β0=3.0
 K= length(β0)
 X0 = x((N, K))
-Y0 = y_true(β0, σ0, X0) # true model is y = x^2 β + ...
+Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
 β_grid = [β0 .+ i for i in (-.5:.01:.5)]
 
-ii1 = indirect_inference_grid(σ0, J, Y0, X0, β_grid, y_true, est_aux)
+ii1 = indirect_inference_grid(Y0, X0, β_grid, y_true, est_aux)
 
     
 
@@ -55,7 +58,8 @@ ii1 = indirect_inference_grid(σ0, J, Y0, X0, β_grid, y_true, est_aux)
 
 ϵ = (σ -> Normal(0, σ)) # function to generate errors
 
-y_true = ((β, σ, X) -> X.^2 * β + rand(ϵ(σ),size(X)[1])) # true model
+σ0=1.0
+y_true = ((β, X) -> X.^2 * β + rand(ϵ(σ0),size(X)[1])) # true model
 
 x = (Size -> rand(Normal(0,1), Size)) # function to generate exogenous variables
 
@@ -72,18 +76,16 @@ function est_aux(Y,X)
     return OLS(Y, z)
 end
 
-J=500
 N=200
-σ0=1
 β0=[3,2]
 K = length(β0)
 X0 = x((N, K))
-Y0 = y_true(β0, σ0, X0) # true model is y = x^2 β + ...
+Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
 β_grid = [β0 .+ i for i in (-.5:.01:.5)]
 
-ii2 = indirect_inference_grid(σ0, J, Y0, X0, β_grid, y_true, est_aux)
+ii2 = indirect_inference_grid(Y0, X0, β_grid, y_true, est_aux)
 
-ii2b = indirect_inference_optim(σ0, J, Y0, X0, y_true, est_aux)
+ii2b = indirect_inference_optim(Y0, X0, y_true, est_aux)
 
 
 #######################
@@ -97,7 +99,8 @@ ii2b = indirect_inference_optim(σ0, J, Y0, X0, y_true, est_aux)
 
 y_aux = ((β, σ, X) -> 1 + log.(X) * β + rand(ϵ(σ),size(X)[1])) #not needed but for illustation
 
-y_true = ((β, σ, X) -> X .^ β + rand(ϵ(σ),size(X)[1]))
+σ0=1
+y_true = ((β, X) -> X .^ β + rand(ϵ(σ0),size(X)[1]))
 
 x = (Size -> rand(Uniform(0,1), Size))
 
@@ -113,17 +116,14 @@ function est_aux(Y,X)
 end
 
 
-J=1000
 N=250
-σ0=1
 β0=3
 K = length(β0)
 X0 = x((N, K))
-Y0 = y_true(β0, σ0, X0) # true model is y = x^2 β + ...
+Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
 β_grid = [β0 .+ i for i in (-.5:.01:.5)]
 
-ii3 = indirect_inference_grid(σ0, J, Y0, X0, β_grid, y_true, est_aux)
-
+ii3 = indirect_inference_grid(Y0, X0, β_grid, y_true, est_aux)
 
 
 
@@ -137,7 +137,8 @@ ii3 = indirect_inference_grid(σ0, J, Y0, X0, β_grid, y_true, est_aux)
 
 ϵ = (σ -> Normal(0, σ)) # function to generate errors
 
-y_true = ((β, σ, X) -> X.^2 * β + rand(ϵ(σ),size(X)[1])) # true model
+σ0=1
+y_true = ((β, X) -> X.^2 * β + rand(ϵ(σ0),size(X)[1])) # true model
 
 x = (Size -> rand(Normal(0,1), Size)) # function to generate exogenous variables
 
@@ -153,13 +154,12 @@ end
 
 
 J_outer=100
-J_inner=800
+J_inner=500
 N=200
-σ0=1
 β0=3
 β_grid = [β0 .+ i for i in (-.5:.02:.5)]
 
-β_hats = sim(β0, σ0, N, J_outer, J_inner, x, y_true, indirect_inference_grid, est_aux, β_grid)
+β_hats = sim(β0, N, x, y_true, indirect_inference_grid, est_aux, β_grid, J_outer, J_inner)
 
 
 using Plots
