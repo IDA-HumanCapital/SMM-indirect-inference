@@ -68,11 +68,11 @@
 module IndirectInference
 
 # using DataFrames
+# using Parameters
 using Statistics
 using Distributions
-# using Parameters
 using LinearAlgebra
-# using GLM
+using GLM
 using Optim, NLSolversBase
 
 
