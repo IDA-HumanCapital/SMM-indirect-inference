@@ -4,7 +4,8 @@
 
 
 # TO DO:
-# Allow estimation bounds with optim
+# Allow estimation bounds - optim does not allow constrained multivariate optimization; 
+#   will explore use of NLopt instead.
 # Allow weighting matrix - done but probably needs some work.
 
 ###########################################
