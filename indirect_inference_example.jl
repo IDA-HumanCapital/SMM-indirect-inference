@@ -52,6 +52,12 @@ Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
 
 ii1 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
 ii1bs = iibootstrap(β=ii1, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, J_bs=9)
+ 
+# for the nonlinear optimizer NLopt, β must be passed as an array even for univariate problems:
+ii1b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, β_init=[β0])
+NLoptOptions = NLopt_options(lb=[β0 - 0.5], ub=[β0 + 0.5])
+ii1b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, β_init=[β0], NLoptOptions=NLoptOptions)
+
 
 # using Plots
 # histogram(ii1bs)
@@ -118,27 +124,38 @@ ii2bbs = iibootstrap(β=ii2b, X0=X0, true_model=y_true, aux_estimation=est_aux, 
 #######################
 
 # indirect inference example 3
+# This is an example that does NOT work well.
 # y = x^β
 ϵ = (σ -> Normal(0, σ))
-
-y_aux = ((β, σ, X) -> 1 + log.(X) * β + rand(ϵ(σ),size(X)[1])) #not needed but for illustation
 
 σ0=1
 y_true = ((β, X) -> X .^ β + rand(ϵ(σ0),size(X)[1]))
 
 x = (Size -> rand(Uniform(0,1), Size))
 
-function setup_X_matrix(X)
-    a = ones(size(X)[1])
-    return transpose([transpose(a); transpose(X); transpose(X.^2); transpose(X.^3)])
-end
+# Note that the McLaurin expansion about β=0 is 
+# y ≈ 1 + β * ln(x)
+# but this will not likely provide a good approximation for β0 different from 0
+# the McLaurin expansion about β=3 is
+# y ≈ x^3 + (β-3) * ln (x) * x^3
 
-function est_aux(Y,X)
-    a = log.(X)
-    z = setup_X_matrix(a)
+function est_auxβ(Y, X, β)
+    a = ones(size(X)[1])
+    if β == 0
+        z = transpose([transpose(a); transpose(log.(X) .* (X.^β))])
+    else
+        z = transpose([transpose(a); transpose(X.^β); transpose(log.(X) .* (X.^β))])
+    end
     return OLS(Y, z)
 end
 
+function est_aux0(Y,X)
+    return est_auxβ(Y, X, 0)
+end
+
+function est_aux3(Y,X)
+    return est_auxβ(Y, X, 3)
+end
 
 N=250
 β0=3
@@ -147,10 +164,16 @@ X0 = x((N, K))
 Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
 β_grid = [β0 .+ i for i in (-.5:.01:.5)]
 
-ii3 = indirect_inference_grid(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
+ii3 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux0, search="grid", β_grid=β_grid)
+ii3 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux3, search="grid", β_grid=β_grid)
 
+ii3b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux0, β_init=[β0])
+ii3b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux3, β_init=[β0])
+NLoptOptions = NLopt_options(lb=[β0 - 0.5], ub=[β0 + 0.5])
+ii3b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux0, β_init=[β0], NLoptOptions=NLoptOptions)
+ii3b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux3, β_init=[β0], NLoptOptions=NLoptOptions)
 
-
+# We never seem to get a good result.  Maybe we need a longer Taylor expansion...
 
 
 
