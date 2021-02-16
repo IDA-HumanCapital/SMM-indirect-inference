@@ -1,6 +1,6 @@
 # NOTE:
 # If you want to use structs, etc. please use a wrapper function.
-# Please do not modify this module without talking to me first.
+# This module is in active development; Please do not modify this module without talking to me first.
 
 
 # TO DO:
@@ -36,7 +36,7 @@
 # 
 # Examples:
 #   ii2 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
-#   ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL")
+#   ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β_init, NLoptOptions=NLoptOptions)
 #   See indirect_inference_examples.jl for complete examples
 #
 ###########################################
@@ -83,6 +83,10 @@
 # Output:
 #   a struct of options to pass to the NLopt wrapper function
 #
+# More details regarding NLopt can be found here:
+#   https://github.com/JuliaOpt/NLopt.jl
+#   https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/
+#
 ###########################################
 
 
@@ -103,22 +107,6 @@ using NLopt
 export OLS, indirect_inference, iibootstrap, NLopt_wrapper, NLopt_options
 
 OLS = ((Y,X) -> inv(transpose(X) * X) * (transpose(X) * Y))
-
-
-# function auxiliary_model_sim_old(βi, b0, X0, true_model, aux_estimation, J=500)
-#     # fit the auxiliary model 
-#     K = size(b0)[1]
-#     b_star = zeros(K, J)
-#     for j in 1:J
-#         Y_star = true_model(βi, X0) # simulate from true model
-#         estimates = aux_estimation(Y_star, X0) # estimate the auxiliary model on simulations
-#         b_star[:, j] = estimates # collect results
-#     end
-#     #is b_star close to b0?
-#     b = sum(b_star, dims=2) / J
-#     MSE = (transpose(b - b0) * (b - b0))[1] # why does julia make assignment difficult??
-#     return MSE
-# end
 
 
 function auxiliary_model_sim(βi, grad, b0, X0, true_model, aux_estimation; gradient=Nothing, kwargs...)
@@ -178,18 +166,6 @@ function indirect_inference(;Y0, X0, true_model, aux_estimation, NLoptOptions=No
     elseif search == "NL"
         MSE = ((βi, grad) -> auxiliary_model_sim(βi, grad, b0, X0, true_model, aux_estimation; kwargs...))
         β_init = kwargs[:β_init]
-        # if (length(β_init) == 1)
-        #     print("Univariate functions not supported at this time")
-        #     β_hat = β_init        
-        # else
-        #     if :optimizer in keys(kwargs)
-        #         results = optimize(MSE, β_init, kwargs[:optimizer])
-
-        #     else
-        #         results = optimize(MSE, β_init)
-        #     end
-        #     β_hat = Optim.minimizer(results)
-        # end
         (minf, β_hat, ret, numevals) = NLopt_wrapper(; fn=MSE, init_val=β_init, NLoptOptions=NLoptOptions)
     end
     return(minf, β_hat, ret, numevals)
@@ -203,27 +179,26 @@ function iibootstrap(;β, X0, true_model, aux_estimation, NLoptOptions=Nothing, 
     storage = zeros(J_bs, K)
     for j in 1:J_bs
         Y = true_model(β, X0)
-        res = indirect_inference(;Y0=Y, X0=X0, true_model=true_model, aux_estimation=aux_estimation, NLoptOptions=Nothing, kwargs...)
+        res = indirect_inference(;Y0=Y, X0=X0, true_model=true_model, aux_estimation=aux_estimation, NLoptOptions=NLoptOptions, kwargs...)
         est = res[2]
-        # estimates = indirect_inference(Y0=Y, X0=X0, true_model=true_model, aux_estimation=aux_estimation, kwargs...)
         storage[j, :] .= [est...]
     end
     return(storage)
 end
 
 
-function sim(β, N, x_fn, y_fn, estimation_fn, aux_estimator, β_grid, J_outer=500, J_inner=500)
-    # do stuff in here
-    K = length(β)
-    storage = zeros(J_outer, K)
-    for j in 1:J_outer
-        X = x_fn((N,K))
-        Y = y_fn(β,X)
-        estimates = estimation_fn(Y0=Y, X0=X, true_model=y_fn, aux_estimation=aux_estimator, J=J_inner, β_grid=β_grid)
-        storage[j, :] .= estimates
-    end
-    return(storage)
-end
+# function sim(β, N, x_fn, y_fn, estimation_fn, aux_estimator, β_grid, J_outer=500, J_inner=500)
+#     # do stuff in here
+#     K = length(β)
+#     storage = zeros(J_outer, K)
+#     for j in 1:J_outer
+#         X = x_fn((N,K))
+#         Y = y_fn(β,X)
+#         estimates = estimation_fn(Y0=Y, X0=X, true_model=y_fn, aux_estimation=aux_estimator, J=J_inner, β_grid=β_grid)
+#         storage[j, :] .= estimates
+#     end
+#     return(storage)
+# end
 
 
 function NLopt_wrapper(; fn, init_val, NLoptOptions=Nothing)

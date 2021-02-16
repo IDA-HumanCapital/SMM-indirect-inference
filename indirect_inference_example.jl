@@ -4,7 +4,6 @@ include(joinpath("estimation", "indirect_inference.jl"))
 using Statistics
 using Distributions
 using LinearAlgebra
-# using Optim, NLSolversBase
 using NLopt
 using Main.IndirectInference
 
