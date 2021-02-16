@@ -4,8 +4,9 @@
 
 
 # TO DO:
-# Allow estimation bounds - in progress
 # Allow weighting matrix - done but probably needs some work.
+# Allow use of a gradient based method when the binding function is specified
+# Add in MCMC for bayesian estimation
 
 ###########################################
 ###########################################
@@ -157,7 +158,11 @@ function indirect_inference(;Y0, X0, true_model, aux_estimation, NLoptOptions=No
             MSE1 = MSE(βi)
             if (MSE1 < MSE0)
                 MSE0 = MSE1
-                β_hat = βi
+                if length(βi) == 1
+                    β_hat = [βi]
+                else
+                    β_hat = βi
+                end
             end
         end    
         minf = MSE0

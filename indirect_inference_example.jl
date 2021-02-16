@@ -13,14 +13,17 @@ using Main.IndirectInference
 #######################
 #######################
 
-# indirect inference example 1
-# y = β x^2
-# note that the binding function is b = 2 .* β
+# indirect inference example 1 
+# - A trivial example that is useful for illustration of the method
+# True model: y = β x^2 + ϵ
+# Auxiliary model: y = b * [1, x, x^2, x^3] + ν
+# note that the binding function is given by b[3] = β
+# This implies that the optimal weighting matrix should take the value 1 at position 3,3 and 0 elsewhere
+# Also, this implies that ∂b/∂β = [0, 0, 1, 0]'.  
+# Note that this makes W* = (∂b/∂β)(∂b/∂β)' = [(∂b/∂β)(∂b/∂β)']^{-1} as desired.
 
 ϵ = (σ -> Normal(0, σ)) # function to generate errors
 
-# σ0=1.0
-# y_true = ((β, X) -> X.^2 * β + rand(ϵ(σ0),size(X)[1])) # true model
 function y_true(β, X)
     σ0=1.0
     return( X.^2 * β + rand(ϵ(σ0), size(X)[1]) ) # true model
@@ -29,10 +32,7 @@ end
 x = (Size -> rand(Normal(0,1), Size)) # function to generate exogenous variables
 
 function setup_X_matrix(X)
-    # let's add a constant to the auxiliary OLS regression 
     a = ones(size(X)[1]) 
-    # let's add in square and cubic terms.  Note, this makes the problem trivial, but
-    # we don't have to add in the square and cubic terms (take them out and try it).
     return transpose([transpose(a); transpose(X); transpose(X.^2); transpose(X.^3)])
 end
 
@@ -48,14 +48,23 @@ K= length(β0)
 X0 = x((N, K))
 Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
 β_grid = [β0 .+ i for i in (-.5:.025:.5)]
+W = kron([0, 0, 1, 0], [0, 0, 1, 0]')
 
 ii1 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
-ii1bs = iibootstrap(β=ii1, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, J_bs=9)
+ii1W = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, W=W)
+
+ii1bs = iibootstrap(β=ii1[2], X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, J_bs=9)
+ii1Wbs = iibootstrap(β=ii1W[2], X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, W=W, J_bs=9)
  
 # for the nonlinear optimizer NLopt, β must be passed as an array even for univariate problems:
-ii1b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, β_init=[β0])
-NLoptOptions = NLopt_options(lb=[β0 - 0.5], ub=[β0 + 0.5])
-ii1b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, β_init=[β0], NLoptOptions=NLoptOptions)
+ii1b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, β_init=[β0]) # unconstrained first
+
+NLoptOptions = NLopt_options(lb=[β0 - 0.5], ub=[β0 + 0.5]) # next, set the same bounds as the grid search for comparison
+ii1c = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, β_init=[β0], NLoptOptions=NLoptOptions)
+ii1cW = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, β_init=[β0], NLoptOptions=NLoptOptions, W=W)
+
+ii1cbs = iibootstrap(β=ii1c[2], X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=[β0], NLoptOptions=NLoptOptions, W=W, J_bs=9)
+ii1cWbs = iibootstrap(β=ii1cW[2], X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=[β0], NLoptOptions=NLoptOptions, W=W, J_bs=9)
 
 
 # using Plots
@@ -96,26 +105,29 @@ X0 = x((N, K))
 Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
 β_grid = [β0 .+ i for i in (-.5:.01:.5)]
 
+# grid search
 ii2 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
-ii2bs = iibootstrap(β=ii2, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, J_bs=9)
+# bootstrap
+ii2bs = iibootstrap(β=ii2[2], X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, J_bs=9)
 
-
+# NL optimization
 NLoptOptions = NLopt_options(lb=[2.5, 1.5], ub=[3.5,2.5], alg=:LN_NELDERMEAD)
 ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions)
 
 NLoptOptions = NLopt_options(lb=[2.5, 1.5], ub=[3.5,2.5], alg=:LN_SBPLX)
-ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions)
+ii2c = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions)
 
 NLoptOptions = NLopt_options(lb=[2.5, 1.5], ub=[3.5,2.5], alg=:LD_SLSQP)
-ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions)
+ii2d = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions)
 # forces stop
 
 NLoptOptions = NLopt_options(lb=[2.5, 1.5], ub=[3.5,2.5], alg=:LD_MMA)
-ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions)
+ii2e = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions)
 #forces stop
 
+# bootstrap the NelderMead based estimates
 NLoptOptions = NLopt_options(lb=[2.5, 1.5], ub=[3.5,2.5], alg=:LN_NELDERMEAD)
-ii2bbs = iibootstrap(β=ii2b, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions, J_bs=9)
+ii2bbs = iibootstrap(β=ii2b[2], X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions, J_bs=9)
 
 #######################
 #######################
@@ -220,7 +232,7 @@ function est_aux(Y, X)
     return out
 end
 
-N=200
+N=400
 β0=[3, 2, 1.5, 1]
 K = length(β0)
 X0 = x((N, 2))
@@ -232,11 +244,16 @@ W[1:4,1:4] = zeros(4,4)
 
 ii4 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
 ii4 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, W=W)
-ii4bs = iibootstrap(β=ii4, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, W=W, J_bs=9)
+ii4bs = iibootstrap(β=ii4[2], X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, W=W, J_bs=9)
 
 NLoptOptions = NLopt_options(lb=β0 .- 0.5, ub=β0 .+ 0.5)
-ii4b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, W=W)
-ii4bbs = iibootstrap(β=ii4b, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=ii4b, J_bs=9, W=W)
+ii4b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, W=W, NLoptOptions=NLoptOptions)
+ii4bbs = iibootstrap(β=ii4b[2], X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, J_bs=9, W=W, NLoptOptions=NLoptOptions)
+
+# lets examine the deviations from β0
+devs = ii4bbs .- repeat(β0',9)
+# you can see that some might not be centered on zero.  This could be due to poor selection of
+# the auxiliary model/moments
 
 
 
@@ -248,7 +265,12 @@ ii4bbs = iibootstrap(β=ii4b, X0=X0, true_model=y_true, aux_estimation=est_aux, 
 
 
 
-
+#####
+#####
+#####
+#####
+#####
+#####
 #####
 # Now let's run a simulation experiment
 
