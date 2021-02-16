@@ -94,8 +94,10 @@ Y0 = y_true(β0, X0) # true model is y = x^2 β + ...
 ii2 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid)
 ii2bs = iibootstrap(β=ii2, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, J_bs=9)
 
-ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0)
-ii2bbs = iibootstrap(β=ii2b, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, J_bs=9)
+
+NLoptOptions = NLopt_options(lb=[2.5, 1.5], ub=[3.5,2.5], alg=:LN_NELDERMEAD)
+ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions)
+ii2bbs = iibootstrap(β=ii2b, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions, J_bs=9)
 
 #######################
 #######################

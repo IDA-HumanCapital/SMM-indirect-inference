@@ -9,6 +9,7 @@
 
 ###########################################
 ###########################################
+# Implements Indirect Inference and SMM
 #
 # Indirect Inference Estimation
 # Usage:
@@ -100,8 +101,11 @@ OLS = ((Y,X) -> inv(transpose(X) * X) * (transpose(X) * Y))
 # end
 
 
-function auxiliary_model_sim(βi, b0, X0, true_model, aux_estimation; kwargs...)
+function auxiliary_model_sim(βi, grad, b0, X0, true_model, aux_estimation; kwargs...)
     # fit the auxiliary model 
+    if length(grad) > 0
+        # just ignore gradient for now; it's a required arg for NLopt
+    end
     K = size(b0)[1]
     if :J in keys(kwargs)
         J = kwargs[:J]
@@ -121,56 +125,18 @@ function auxiliary_model_sim(βi, b0, X0, true_model, aux_estimation; kwargs...)
 end
 
 
-# function indirect_inference_grid(Y0, X0, β_grid, true_model, aux_estimation, J=500)
-#     # simple indirect inference using a grid search
-#     # and a linearized model
-#     N = length(Y0)
-#     K = size(X0,2)
-#     b0 = aux_estimation(Y0, X0) # estimate auxiliary model on data
-#     β_hat = zeros(K, 1)
-#     MSE0 = Inf # something large
-#     for βi in β_grid
-#         MSE = auxiliary_model_sim(βi, b0, X0, true_model, aux_estimation, J)
-#         if (MSE < MSE0)
-#             MSE0 = MSE
-#             β_hat = βi
-#         end
-#     end
-#     return(β_hat)
-# end
-
-
-# function indirect_inference_optim(Y0, X0, true_model, aux_estimation, J=500)
-#     # simple indirect inference using Optim
-#     # and a linearized model
-#     N = length(Y0)
-#     K = size(X0,2)
-#     b0 = aux_estimation(Y0, X0) # estimate auxiliary model on data
-#     β_hat = zeros(K, 1)
-#     MSE = (βi -> auxiliary_model_sim(βi, b0, X0, true_model, aux_estimation, J))
-#     if (K==1)
-#         print("Univariate functions not supported at this time")
-#         β_hat_out = 0        
-#     else
-#         results = optimize(MSE, β_hat)
-#         β_hat_out = Optim.minimizer(results)
-#     end
-#     return(β_hat_out)
-# end
-
-
-function indirect_inference(;Y0, X0, true_model, aux_estimation, kwargs...)
+function indirect_inference(;Y0, X0, true_model, aux_estimation, NLoptOptions=Nothing, kwargs...)
     # simple indirect inference using Optim
     # and a linearized model
     N = length(Y0)
     b0 = aux_estimation(Y0, X0) # estimate auxiliary model on data
-    MSE = (βi -> auxiliary_model_sim(βi, b0, X0, true_model, aux_estimation; kwargs...))
     if :search in keys(kwargs)
         search = kwargs[:search]
     else
         search = "NL"
     end
     if search == "grid"
+        MSE = (βi -> auxiliary_model_sim(βi, [], b0, X0, true_model, aux_estimation; kwargs...))
         β_grid = kwargs[:β_grid]
         MSE0 = Inf # something large
         for βi in β_grid
@@ -180,32 +146,38 @@ function indirect_inference(;Y0, X0, true_model, aux_estimation, kwargs...)
                 β_hat = βi
             end
         end    
+        minf = MSE0
+        ret = "grid search"
+        numevals = length(β_grid)
     elseif search == "NL"
+        MSE = ((βi, grad) -> auxiliary_model_sim(βi, grad, b0, X0, true_model, aux_estimation; kwargs...))
         β_init = kwargs[:β_init]
-        if (length(β_init) == 1)
-            print("Univariate functions not supported at this time")
-            β_hat = β_init        
-        else
-            if :optimizer in keys(kwargs)
-                results = optimize(MSE, β_init, kwargs[:optimizer])
-            else
-                results = optimize(MSE, β_init)
-            end
-            β_hat = Optim.minimizer(results)
-        end
+        # if (length(β_init) == 1)
+        #     print("Univariate functions not supported at this time")
+        #     β_hat = β_init        
+        # else
+        #     if :optimizer in keys(kwargs)
+        #         results = optimize(MSE, β_init, kwargs[:optimizer])
+
+        #     else
+        #         results = optimize(MSE, β_init)
+        #     end
+        #     β_hat = Optim.minimizer(results)
+        # end
+        (minf, β_hat, ret, numevals) = NLopt_wrapper(; fn=MSE, init_val=β_init, NLoptOptions=NLoptOptions)
     end
-    return(β_hat)
+    return(minf, β_hat, ret, numevals)
 end
 
 
-function iibootstrap(;β, X0, true_model, aux_estimation, J_bs=9, kwargs...)
+function iibootstrap(;β, X0, true_model, aux_estimation, NLoptOptions=Nothing, J_bs=9, kwargs...)
     # implements a parameteric bootstrap with the indirect inference estimation function
     # Note that this is computationally intensive
     K = length(β)
     storage = zeros(J_bs, K)
     for j in 1:J_bs
         Y = true_model(β, X0)
-        est = indirect_inference(;Y0=Y, X0=X0, true_model=true_model, aux_estimation=aux_estimation, kwargs...)
+        est = indirect_inference(;Y0=Y, X0=X0, true_model=true_model, aux_estimation=aux_estimation, NLoptOptions=Nothing, kwargs...)
         # estimates = indirect_inference(Y0=Y, X0=X0, true_model=true_model, aux_estimation=aux_estimation, kwargs...)
         storage[j, :] .= [est...]
     end
@@ -227,7 +199,10 @@ function sim(β, N, x_fn, y_fn, estimation_fn, aux_estimator, β_grid, J_outer=5
 end
 
 
-function NLopt_wrapper(; fn, init_val, NLoptOptions)
+function NLopt_wrapper(; fn, init_val, NLoptOptions=Nothing)
+    if NLoptOptions == Nothing
+        NLoptOptions = NLopt_options()
+    end
     opt = Opt(NLoptOptions.alg, length(init_val))
     if NLoptOptions.lb != Nothing
         opt.lower_bounds = NLoptOptions.lb
@@ -246,7 +221,8 @@ function NLopt_wrapper(; fn, init_val, NLoptOptions)
     
     (minf,minx,ret) = optimize(opt, init_val)
     numevals = opt.numevals # the number of function evaluations
-    println("got $minf at $minx after $numevals iterations (returned $ret)")
+    # println("got $minf at $minx after $numevals iterations (returned $ret)")
+    return(minf, minx, ret, numevals)
 end
 
 
