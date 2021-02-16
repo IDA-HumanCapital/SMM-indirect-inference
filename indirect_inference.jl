@@ -1,6 +1,6 @@
 # NOTE:
 # If you want to use structs, etc. please use a wrapper function.
-# This module is in active development; Please do not modify this module without talking to me first.
+# This module is in active development, so please talk to me before modifying it.
 
 
 # TO DO:
