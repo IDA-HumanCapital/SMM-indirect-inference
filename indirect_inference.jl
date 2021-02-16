@@ -101,10 +101,15 @@ OLS = ((Y,X) -> inv(transpose(X) * X) * (transpose(X) * Y))
 # end
 
 
-function auxiliary_model_sim(βi, grad, b0, X0, true_model, aux_estimation; kwargs...)
+function auxiliary_model_sim(βi, grad, b0, X0, true_model, aux_estimation; gradient=Nothing, kwargs...)
     # fit the auxiliary model 
     if length(grad) > 0
-        # just ignore gradient for now; it's a required arg for NLopt
+        if gradient == Nothing
+            throw(ArgumentError("gradient function required for this optimization algorithm"))
+        end
+        # just ignore gradient for now; it's a required arg for NLopt, 
+        # but return an error if using an optimization method that requires a gradient
+        # this appears to cause NLopt to force stop, so the message above is not displayed.
     end
     K = size(b0)[1]
     if :J in keys(kwargs)
