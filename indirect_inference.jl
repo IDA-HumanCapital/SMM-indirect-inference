@@ -26,7 +26,7 @@
 #   β_init: initial value for the "NL" estimation routine (required for search="NL")
 #   β_grid: grid of βs for the "grid" search estimation routine (required for search="grid")
 #   J: number of times to simulate from the true model
-#   optimizer: the nonlinear optimzer used by optim.  The default is Nelder-Mead
+#   NLoptOptions: Options passed to the nonlinear optimizer NLopt (see NLopt_Options() below for details)
 #   W: the weighting matrix (I may change this later to get it from aux_estimation)  Note that the
 #       optimal weighting matrix depends upon the binding function in general.  When the binding
 #       function is not known, results are not expected to be efficient.
@@ -51,6 +51,7 @@
 #
 # Arguments:
 #   J_bs: the number of bootstrap samples
+#   β: the parameter used to simulate the model, usually the estimates β_hat
 #   all other arguments are the same as indirect_inference()
 #
 # Output:
@@ -66,6 +67,25 @@
 #   The trade-off is that this is computationally intensive.
 #
 ###########################################
+###########################################
+#
+# Setting options for the NLopt Optimizer
+# Usage:
+#   NLoptions = NLopt_options(lb=Nothing, ub=Nothing, cons_ineq=Nothing, alg=:LN_NELDERMEAD, xtol=1e-4)
+#
+# Arguments:
+#   lb: array of lower bounds
+#   ub: array of upper bounds
+#   cons_ineq: array of generic functions representing inequality constraints
+#   alg: optimization algorithm (NelderMead is the default)
+#   xtol: x tolerance
+#
+# Output:
+#   a struct of options to pass to the NLopt wrapper function
+#
+###########################################
+
+
 
 
 module IndirectInference
@@ -110,6 +130,7 @@ function auxiliary_model_sim(βi, grad, b0, X0, true_model, aux_estimation; grad
         # just ignore gradient for now; it's a required arg for NLopt, 
         # but return an error if using an optimization method that requires a gradient
         # this appears to cause NLopt to force stop, so the message above is not displayed.
+        # when implemented, gradient should supply ∂b/∂β and ∂W/∂β to allow calculation of ∂MSE/∂β
     end
     K = size(b0)[1]
     if :J in keys(kwargs)
@@ -182,7 +203,8 @@ function iibootstrap(;β, X0, true_model, aux_estimation, NLoptOptions=Nothing, 
     storage = zeros(J_bs, K)
     for j in 1:J_bs
         Y = true_model(β, X0)
-        est = indirect_inference(;Y0=Y, X0=X0, true_model=true_model, aux_estimation=aux_estimation, NLoptOptions=Nothing, kwargs...)
+        res = indirect_inference(;Y0=Y, X0=X0, true_model=true_model, aux_estimation=aux_estimation, NLoptOptions=Nothing, kwargs...)
+        est = res[2]
         # estimates = indirect_inference(Y0=Y, X0=X0, true_model=true_model, aux_estimation=aux_estimation, kwargs...)
         storage[j, :] .= [est...]
     end
@@ -241,7 +263,7 @@ struct NLopt_options_obj
 end
 
 
-function NLopt_options(; lb=Nothing, ub=Nothing, cons_ineq=Nothing, alg=:LD_MMA, xtol=1e-4)
+function NLopt_options(; lb=Nothing, ub=Nothing, cons_ineq=Nothing, alg=:LN_NELDERMEAD, xtol=1e-4)
     out = NLopt_options_obj(lb, ub, cons_ineq, alg, xtol)
 end
 

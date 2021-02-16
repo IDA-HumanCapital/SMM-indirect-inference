@@ -103,7 +103,13 @@ ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_au
 
 NLoptOptions = NLopt_options(lb=[2.5, 1.5], ub=[3.5,2.5], alg=:LD_SLSQP)
 ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions)
+# forces stop
 
+NLoptOptions = NLopt_options(lb=[2.5, 1.5], ub=[3.5,2.5], alg=:LD_MMA)
+ii2b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions)
+#forces stop
+
+NLoptOptions = NLopt_options(lb=[2.5, 1.5], ub=[3.5,2.5], alg=:LN_NELDERMEAD)
 ii2bbs = iibootstrap(β=ii2b, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions, J_bs=9)
 
 #######################
@@ -206,10 +212,10 @@ ii4 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux
 ii4 = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, W=W)
 ii4bs = iibootstrap(β=ii4, X0=X0, true_model=y_true, aux_estimation=est_aux, search="grid", β_grid=β_grid, W=W, J_bs=9)
 
-ii4b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0)
-ii4bbs = iibootstrap(β=ii4b, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=ii4b, J_bs=9)
+NLoptOptions = NLopt_options(lb=β0 .- 0.5, ub=β0 .+ 0.5)
+ii4b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, W=W)
+ii4bbs = iibootstrap(β=ii4b, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=ii4b, J_bs=9, W=W)
 
-ii4c = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, optimizer=LBFGS())
 
 
 
