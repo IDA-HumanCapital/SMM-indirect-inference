@@ -4,8 +4,7 @@
 
 
 # TO DO:
-# Allow estimation bounds - optim does not allow constrained multivariate optimization; 
-#   will explore use of NLopt instead.
+# Allow estimation bounds - in progress
 # Allow weighting matrix - done but probably needs some work.
 
 ###########################################
@@ -27,7 +26,9 @@
 #   β_grid: grid of βs for the "grid" search estimation routine (required for search="grid")
 #   J: number of times to simulate from the true model
 #   optimizer: the nonlinear optimzer used by optim.  The default is Nelder-Mead
-#   W: the weighting matrix (I may change this later to get it from aux_estimation)
+#   W: the weighting matrix (I may change this later to get it from aux_estimation)  Note that the
+#       optimal weighting matrix depends upon the binding function in general.  When the binding
+#       function is not known, results are not expected to be efficient.
 # 
 # Output:
 #   array of the structural parameter estimates
@@ -74,11 +75,11 @@ using Statistics
 using Distributions
 using LinearAlgebra
 using GLM
-using Optim, NLSolversBase
+# using Optim, NLSolversBase
+using NLopt
 
 
-
-export OLS, indirect_inference, iibootstrap
+export OLS, indirect_inference, iibootstrap, NLopt_wrapper, NLopt_options
 
 OLS = ((Y,X) -> inv(transpose(X) * X) * (transpose(X) * Y))
 
@@ -223,6 +224,44 @@ function sim(β, N, x_fn, y_fn, estimation_fn, aux_estimator, β_grid, J_outer=5
         storage[j, :] .= estimates
     end
     return(storage)
+end
+
+
+function NLopt_wrapper(; fn, init_val, NLoptOptions)
+    opt = Opt(NLoptOptions.alg, length(init_val))
+    if NLoptOptions.lb != Nothing
+        opt.lower_bounds = NLoptOptions.lb
+    end
+    if NLoptOptions.ub != Nothing
+        opt.upper_bounds = NLoptOptions.ub
+    end
+    opt.xtol_rel = NLoptOptions.xtol
+
+    opt.min_objective = fn
+    if NLoptOptions.cons_ineq != Nothing
+        for i in 1:length(NLoptOptions.cons_ineq)
+            inequality_constraint!(opt, NLoptOptions.cons_ineq[i], 1e-8)
+        end
+    end
+    
+    (minf,minx,ret) = optimize(opt, init_val)
+    numevals = opt.numevals # the number of function evaluations
+    println("got $minf at $minx after $numevals iterations (returned $ret)")
+end
+
+
+struct NLopt_options_obj
+    lb
+    ub
+    cons_ineq
+    alg
+    xtol
+    NLopt_options_obj(lb, ub, cons_ineq, alg, xtol) = new(lb, ub, cons_ineq, alg, xtol)
+end
+
+
+function NLopt_options(; lb=Nothing, ub=Nothing, cons_ineq=Nothing, alg=:LD_MMA, xtol=1e-4)
+    out = NLopt_options_obj(lb, ub, cons_ineq, alg, xtol)
 end
 
 
