@@ -15,9 +15,9 @@ using Main.IndirectInference
 
 # indirect inference example 1 
 # - A trivial example that is useful for illustration of the method
-# True model: y = β x^2 + ϵ
-# Auxiliary model: y = b * [1, x, x^2, x^3] + ν
-# note that the binding function is given by b[3] = β
+# True model: y = x^2 β + ϵ
+# Auxiliary model: y = [1, x, x^2, x^3] * b + ν = Z b + ν
+# note that the binding function is given by b = [0, 0, β, 0]'
 # This implies that the optimal weighting matrix should take the value 1 at position 3,3 and 0 elsewhere
 # Also, this implies that ∂b/∂β = [0, 0, 1, 0]'.  
 # Note that this makes W* = (∂b/∂β)(∂b/∂β)' = [(∂b/∂β)(∂b/∂β)']^{-1} as desired.
@@ -39,6 +39,12 @@ end
 function est_aux(Y,X)  
     z = setup_X_matrix(X)
     return OLS(Y, z)
+end
+
+function est_aux2(Y,X)  
+    z = setup_X_matrix(X)
+    ∂b = [0, 0, 1, 0]
+    return OLS(Y, z), ∂b
 end
 
 
@@ -65,6 +71,16 @@ ii1cW = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_a
 
 ii1cbs = iibootstrap(β=ii1c[2], X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=[β0], NLoptOptions=NLoptOptions, W=W, J_bs=9)
 ii1cWbs = iibootstrap(β=ii1cW[2], X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=[β0], NLoptOptions=NLoptOptions, W=W, J_bs=9)
+
+# now use the gradient with a gradient-required algorithm
+NLoptOptions = NLopt_options(alg=:LD_LBFGS)
+ii1d = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux2, β_init=[β0], NLoptOptions=NLoptOptions, gradient=true)
+ii1dW = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux2, β_init=[β0], NLoptOptions=NLoptOptions, W=W, gradient=true)
+
+NLoptOptions = NLopt_options(alg=:LD_MMA)
+ii1e = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux2, β_init=[β0], NLoptOptions=NLoptOptions, gradient=true)
+ii1eW = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux2, β_init=[β0], NLoptOptions=NLoptOptions, W=W, gradient=true)
+
 
 
 # using Plots
@@ -251,7 +267,8 @@ ii4b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_au
 ii4bbs = iibootstrap(β=ii4b[2], X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, J_bs=9, W=W, NLoptOptions=NLoptOptions)
 
 # lets examine the deviations from β0
-devs = ii4bbs .- repeat(β0',9)
+devs = ii4bbs .- repeat(ii4b[2]',9)
+round.(devs, digits=2)
 # you can see that some might not be centered on zero.  This could be due to poor selection of
 # the auxiliary model/moments
 

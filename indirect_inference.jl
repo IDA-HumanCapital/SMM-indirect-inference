@@ -4,8 +4,7 @@
 
 
 # TO DO:
-# Allow weighting matrix - done but probably needs some work.
-# Allow use of a gradient based method when the binding function is specified
+# Allow weighting matrix to depend upon b or β
 # Add in MCMC for bayesian estimation
 
 ###########################################
@@ -31,6 +30,7 @@
 #   W: the weighting matrix (I may change this later to get it from aux_estimation)  Note that the
 #       optimal weighting matrix depends upon the binding function in general.  When the binding
 #       function is not known, results are not expected to be efficient.
+#   gradient: Must be =true if using search="NL" and a gradient based search algorithm.
 # 
 # Output:
 #   array of the structural parameter estimates
@@ -110,16 +110,21 @@ export OLS, indirect_inference, iibootstrap, NLopt_wrapper, NLopt_options
 OLS = ((Y,X) -> inv(transpose(X) * X) * (transpose(X) * Y))
 
 
-function auxiliary_model_sim(βi, grad, b0, X0, true_model, aux_estimation; gradient=Nothing, kwargs...)
+function auxiliary_model_sim(βi, grad, b0, X0, true_model, aux_estimation; kwargs...)
     # fit the auxiliary model 
+    if :gradient in keys(kwargs)
+        gradient = kwargs[:gradient]
+    else
+        gradient = false
+    end
     if length(grad) > 0
-        if gradient == Nothing
+        if gradient == false
             throw(ArgumentError("gradient function required for this optimization algorithm"))
         end
         # just ignore gradient for now; it's a required arg for NLopt, 
         # but return an error if using an optimization method that requires a gradient
         # this appears to cause NLopt to force stop, so the message above is not displayed.
-        # when implemented, gradient should supply ∂b/∂β and ∂W/∂β to allow calculation of ∂MSE/∂β
+        # when implemented, gradient should supply ∂b/∂β (and ∂W/∂β in the future) to allow calculation of ∂MSE/∂β
     end
     K = size(b0)[1]
     if :J in keys(kwargs)
@@ -129,11 +134,19 @@ function auxiliary_model_sim(βi, grad, b0, X0, true_model, aux_estimation; grad
     end
     XJ = repeat(X0, J)
     Y_star = true_model(βi, XJ) # simulate from true model
-    b = aux_estimation(Y_star, XJ) # estimate the auxiliary model on simulations
     if :W in keys(kwargs)
         W = kwargs[:W]
     else
         W = I(K)
+    end
+    # b = aux_estimation(Y_star, XJ) # estimate the auxiliary model on simulations
+    if gradient == false
+        b = aux_estimation(Y_star, XJ)
+    elseif gradient == true
+        b, ∂b = aux_estimation(Y_star, XJ)
+        if length(grad) > 0
+            grad[:] = 2 .* ∂b' * W * (b .- b0)
+        end
     end
     MSE = (transpose(b - b0) * W * (b - b0))[1] # why does julia make assignment difficult??
     return MSE
@@ -145,6 +158,11 @@ function indirect_inference(;Y0, X0, true_model, aux_estimation, NLoptOptions=No
     # and a linearized model
     N = length(Y0)
     b0 = aux_estimation(Y0, X0) # estimate auxiliary model on data
+    if :gradient in keys(kwargs)
+        if kwargs[:gradient] == true
+            b0 = b0[1]
+        end
+    end
     if :search in keys(kwargs)
         search = kwargs[:search]
     else
@@ -169,7 +187,7 @@ function indirect_inference(;Y0, X0, true_model, aux_estimation, NLoptOptions=No
         ret = "grid search"
         numevals = length(β_grid)
     elseif search == "NL"
-        MSE = ((βi, grad) -> auxiliary_model_sim(βi, grad, b0, X0, true_model, aux_estimation; kwargs...))
+        MSE = ((βi, g) -> auxiliary_model_sim(βi, g, b0, X0, true_model, aux_estimation; kwargs...))
         β_init = kwargs[:β_init]
         (minf, β_hat, ret, numevals) = NLopt_wrapper(; fn=MSE, init_val=β_init, NLoptOptions=NLoptOptions)
     end
