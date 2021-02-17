@@ -52,7 +52,9 @@
 #
 # Arguments:
 #   J_bs: the number of bootstrap samples
-#   β: the parameter used to simulate the model, usually the estimates β_hat
+#   β: the parameter used to simulate the model, 
+#       usually the null hypothesis value β_0 if testing against a null
+#       or the estimates β_hat
 #   all other arguments are the same as indirect_inference()
 #
 # Output:

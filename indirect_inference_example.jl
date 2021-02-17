@@ -104,8 +104,8 @@ x = (Size -> rand(Normal(0,1), Size)) # function to generate exogenous variables
 function setup_X_matrix(X)
     # let's add a constant to the auxiliary OLS regression 
     a = ones(size(X)[1]) 
-    # let's add in square and cubic terms.  Note, this makes the problem trivial, but
-    # we don't have to add in the square and cubic terms (take them out and try it).
+    # let's add in square and cubic terms.  Note, this makes the problem trivial (see example 1), 
+    # but we don't have to add in the square and cubic terms (take them out and try it).
     return transpose([transpose(a); transpose(X); transpose(X.^2); transpose(X.^3)])
 end
 
@@ -267,10 +267,130 @@ ii4b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_au
 ii4bbs = iibootstrap(β=ii4b[2], X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, J_bs=9, W=W, NLoptOptions=NLoptOptions)
 
 # lets examine the deviations from β0
-devs = ii4bbs .- repeat(ii4b[2]',9)
+devs = ii4bbs .- repeat(ii4b[2]', 9)
 round.(devs, digits=2)
 # you can see that some might not be centered on zero.  This could be due to poor selection of
 # the auxiliary model/moments
+
+
+
+
+
+
+
+
+#######################
+#######################
+#######################
+#######################
+
+# indirect inference example 5
+# classic example: estimate a true MA model with an AR auxiliary model
+
+
+include(joinpath("estimation", "indirect_inference.jl"))
+
+using Statistics
+using Distributions
+using LinearAlgebra
+using NLopt
+using Main.IndirectInference
+
+ϵ = (σ -> Normal(0, σ))
+
+function y_true5(β, N)
+    max_l = 1
+    Nb = 100 + max_l
+    N2 = N + Nb # add in a burn in period
+    e = rand(ϵ(1), N2)
+    X = [lag(e, 0, 1)'; lag(e, 1, 1)']'
+    Y = X * [1; β]
+    Y = Y[(N2-N+1-max_l):(N2-max_l)]
+    return(Y)
+end
+
+function lag(Y, l, max_l)
+    Ny = length(Y)
+    Nl = Ny - max_l
+    Yl = Y[(1+max_l-l):(Ny-l)]
+end
+
+function setup_X_matrix(Y, max_l)
+    X = ones(length(Y)-max_l)
+    for l in 1:max_l
+        X = [X'; lag(Y, l, max_l)']'
+    end
+    y = lag(Y, 0, max_l)
+    return y, X
+end
+
+function est_aux(Y, P)
+    y, z = setup_X_matrix(Y, P)
+    return OLS(y, z)
+end
+
+
+# We need to setup the problem so that it will fit into the ii format.  
+# We can use the following wrapper functions:
+est_aux_wrapper = ((Y, X) -> est_aux(Y, p))
+y_true_wrapper = ((β, X) -> y_true5(β, length(X)))
+
+N=1000
+β0=0.5
+Y0 = y_true5(β0, N) # true model is y = x^2 β + ...
+β_grid = [i for i in (-0.95:0.01:0.95)]
+p = 10  # An MA(1) has an AR(∞) representation, but we will truncate at p=10
+
+ii5 = indirect_inference(Y0=Y0, X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="grid", β_grid=β_grid)
+ii5bs = iibootstrap(β=ii5[2], X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="grid", β_grid=β_grid, J_bs=9)
+
+NLoptOptions = NLopt_options(lb= -0.95, ub= 0.95)
+ii5b = indirect_inference(Y0=Y0, X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="NL", β_init=[β0], NLoptOptions=NLoptOptions)
+ii5bbs = iibootstrap(β=ii5b[2], X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="NL", β_init=[β0], J_bs=9, NLoptOptions=NLoptOptions)
+
+# If I am remembering correctly, Eric Ghysels has a paper providing the 
+# binding function for this case, so we could supply it and use a gradient based search
+# with an optimal weighting matrix, but the gradient free approach seems to work pretty well.
+
+
+
+
+
+
+#######################
+#######################
+#######################
+#######################
+
+# Example 6 - Vector y
+# let's piggy back off of example 5 and see if we can do a VMA/VAR example
+
+include(joinpath("estimation", "indirect_inference.jl"))
+
+using Statistics
+using Distributions
+using LinearAlgebra
+using NLopt
+using Main.IndirectInference
+
+ϵ = (σ -> Normal(0, σ))
+
+function y_true5(β, N)
+    max_l = 1
+    Nb = 100 + max_l
+    N2 = N + Nb # add in a burn in period
+    e = rand(ϵ(1), N2)
+    X = [lag(e, 0, 1)'; lag(e, 1, 1)']'
+    Y = X * [1; β]
+    Y = Y[(N2-N+1-max_l):(N2-max_l)]
+    return(Y)
+end
+
+
+
+
+
+
 
 
 
