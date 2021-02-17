@@ -330,16 +330,17 @@ function est_aux(Y, P)
 end
 
 
+N=1000
+β0=0.5
+Y0 = y_true5(β0, N) 
+β_grid = [i for i in (-0.95:0.01:0.95)]
+p = 10  # An MA(1) has an AR(∞) representation, but we will truncate at p=10
+
 # We need to setup the problem so that it will fit into the ii format.  
 # We can use the following wrapper functions:
 est_aux_wrapper = ((Y, X) -> est_aux(Y, p))
 y_true_wrapper = ((β, X) -> y_true5(β, length(X)))
 
-N=1000
-β0=0.5
-Y0 = y_true5(β0, N) # true model is y = x^2 β + ...
-β_grid = [i for i in (-0.95:0.01:0.95)]
-p = 10  # An MA(1) has an AR(∞) representation, but we will truncate at p=10
 
 ii5 = indirect_inference(Y0=Y0, X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="grid", β_grid=β_grid)
 ii5bs = iibootstrap(β=ii5[2], X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="grid", β_grid=β_grid, J_bs=9)
@@ -375,17 +376,88 @@ using Main.IndirectInference
 
 ϵ = (σ -> Normal(0, σ))
 
-function y_true5(β, N)
+function y_true6(vecπ, N)
+    # Note that when Y is a vector process, we need to carefully keep track of matrix dimensions
+    # π = [0.5 0.25; 0.2 0.4]'
+    # vecπ = vec(π')
     max_l = 1
+    ρ = 0.3 # make the errors correlated across series
+    n = 2
     Nb = 100 + max_l
     N2 = N + Nb # add in a burn in period
-    e = rand(ϵ(1), N2)
-    X = [lag(e, 0, 1)'; lag(e, 1, 1)']'
-    Y = X * [1; β]
-    Y = Y[(N2-N+1-max_l):(N2-max_l)]
-    return(Y)
+    Ω = [1 ρ; ρ 1]
+    s = cholesky(Ω).U
+    e = rand(ϵ(1), (N2, n))
+    e = e * s # T x n
+    X = lag(e, 1, 1)'  # (nq) x T
+    ep = lag(e, 0, 1)' # n x T
+    # Y = π' * X .+ ep  # [n x (nq)] * [(nq) x T] + [n x T] = n x T
+    # Y = Y[:, (N2-N+1-max_l):(N2-max_l)] # remove burn in
+    # y = vec(Y)  # nT x 1
+    vecY = (kron(X', I(n))) * vecπ + vec(ep)  # nT x 1 = [nT x n(nq)] * [n(nq) x 1] + nT x 1
+    vecY = vecY[(n*(N2-N-max_l)+1):(n*(N2-max_l))]
+    # y - vecY  # sanity check
+    return(vecY)
 end
 
+function unvecY(y, N)
+    n = Int(length(y) / N)
+    out = y[(1:n:(N*n))]
+    for i in 2:n
+        out = [out'; y[(i:n:(N*n))]']'
+    end
+    return(out)  # T x n
+end
+
+function lag(Y, l, max_l)
+    Ny = size(Y)[1]
+    Nl = Ny - max_l
+    Yl = Y[(1+max_l-l):(Ny-l), :]
+end
+
+function setup_X_matrix(Y, max_l)
+    X = ones(size(Y)[1]-max_l)
+    for l in 1:max_l
+        X = [X'; lag(Y, l, max_l)']'
+    end
+    y = lag(Y, 0, max_l)
+    return y, X
+end
+
+function est_aux(vecY, P, N)
+    Y = unvecY(vecY, N)
+    n = size(Y)[2]
+    y, z = setup_X_matrix(Y, P) # T x n and T x (nP + 1)
+    vecy = vec(y')
+    Z = kron(z, I(n))
+    return OLS(vecy, Z)
+end
+
+
+# This is a complex problem, so let's use a large N and p
+N=5000
+π = [0.5 0.25; 0.2 0.4]'
+vecπ = vec(π') # vecπ is our β here
+Y0 = y_true6(vecπ, N) 
+β_grid = [vecπ .+ i for i in (-0.5:0.01:0.45)]
+p = 20
+
+# Similar to example 5, we create wrapper functions that ignore X but pass p and N
+est_aux_wrapper = ((Y, X) -> est_aux(Y, p, N))
+y_true_wrapper = ((β, X) -> y_true6(β, N))
+
+# Note that an extensive grid search would be really computationally expensive
+ii5 = indirect_inference(Y0=Y0, X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="grid", β_grid=β_grid)
+# ii5bs = iibootstrap(β=ii5[2], X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="grid", β_grid=β_grid, J_bs=9)
+
+NLoptOptions = NLopt_options(lb=fill(-0.95,4), ub=fill(0.95,4))
+ii5b = indirect_inference(Y0=Y0, X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="NL", β_init=vecπ, NLoptOptions=NLoptOptions)
+# ii5bbs = iibootstrap(β=ii5b[2], X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="NL", β_init=vecπ, J_bs=9, NLoptOptions=NLoptOptions)
+
+ii5[2]
+ii5b[2]
+vecπ
+# looks good
 
 
 
