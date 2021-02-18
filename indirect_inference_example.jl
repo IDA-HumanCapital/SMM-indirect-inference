@@ -1,11 +1,24 @@
+######
+# Compilation of examples to illustrate use of the indirect inference/SMM module
+#
+#
+# Note: I recommend clearing the REPL/console between examples to prevent conflicts, 
+#   since some of the functions and variables are given the same names across examples
+#
+# Contents:
+# 1. Univariate outcome, scalar structural parameter, auxilary model nests the structural model
+# 2. Same as 1, but with a vector structural parameter
+# 3. A simple example that does not work well, probably due to poor specification of the 
+#       auxilary model
+# 4. Univariate outcome, vector structural parameter, and a dgp that is nonlinear in the 
+#       structural parameters
+# 5. Univariate outcome, scalar structural parameter, and latent covariates
+# 6. Vector outcome, matrix structural parameter, and latent covariates
+#
+# Examples 5 and 6 illustrate use of wrapper functions to pass the structural dgp and auxiliary 
+#   estimation routine to the indirect inference module
+#
 
-include(joinpath("estimation", "indirect_inference.jl"))
-
-using Statistics
-using Distributions
-using LinearAlgebra
-using NLopt
-using Main.IndirectInference
 
 
 #######################
@@ -21,6 +34,17 @@ using Main.IndirectInference
 # This implies that the optimal weighting matrix should take the value 1 at position 3,3 and 0 elsewhere
 # Also, this implies that ∂b/∂β = [0, 0, 1, 0]'.  
 # Note that this makes W* = (∂b/∂β)(∂b/∂β)' = [(∂b/∂β)(∂b/∂β)']^{-1} as desired.
+
+
+include(joinpath("estimation", "indirect_inference.jl"))
+
+using Statistics
+using Distributions
+using LinearAlgebra
+using NLopt
+using Main.IndirectInference
+
+
 
 ϵ = (σ -> Normal(0, σ)) # function to generate errors
 
@@ -86,6 +110,20 @@ ii1eW = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_a
 # using Plots
 # histogram(ii1bs)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #######################
 #######################
 #######################
@@ -93,6 +131,17 @@ ii1eW = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_a
 
 # indirect inference example 2
 # y = β_1 x_1 ^ 2 + β_2 x_2 ^ 2
+
+
+include(joinpath("estimation", "indirect_inference.jl"))
+
+using Statistics
+using Distributions
+using LinearAlgebra
+using NLopt
+using Main.IndirectInference
+
+
 
 ϵ = (σ -> Normal(0, σ)) # function to generate errors
 
@@ -145,6 +194,17 @@ ii2e = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_au
 NLoptOptions = NLopt_options(lb=[2.5, 1.5], ub=[3.5,2.5], alg=:LN_NELDERMEAD)
 ii2bbs = iibootstrap(β=ii2b[2], X0=X0, true_model=y_true, aux_estimation=est_aux, search="NL", β_init=β0, NLoptOptions=NLoptOptions, J_bs=9)
 
+
+
+
+
+
+
+
+
+
+
+
 #######################
 #######################
 #######################
@@ -153,6 +213,17 @@ ii2bbs = iibootstrap(β=ii2b[2], X0=X0, true_model=y_true, aux_estimation=est_au
 # indirect inference example 3
 # This is an example that does NOT work well.
 # y = x^β
+
+
+include(joinpath("estimation", "indirect_inference.jl"))
+
+using Statistics
+using Distributions
+using LinearAlgebra
+using NLopt
+using Main.IndirectInference
+
+
 ϵ = (σ -> Normal(0, σ))
 
 σ0=1
@@ -200,7 +271,11 @@ NLoptOptions = NLopt_options(lb=[β0 - 0.5], ub=[β0 + 0.5])
 ii3b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux0, β_init=[β0], NLoptOptions=NLoptOptions)
 ii3b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_aux3, β_init=[β0], NLoptOptions=NLoptOptions)
 
-# We never seem to get a good result.  Maybe we need a longer Taylor expansion...
+# We never seem to get a good result.  Maybe we need a longer Taylor expansion or a more appropriate auxiliary model...
+
+
+
+
 
 
 
@@ -211,6 +286,16 @@ ii3b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_au
 
 # indirect inference example 4
 # y = (x1 + β1)^β2 + β3 (x1 * x2 + β4)^2 + ϵ
+
+
+include(joinpath("estimation", "indirect_inference.jl"))
+
+using Statistics
+using Distributions
+using LinearAlgebra
+using NLopt
+using Main.IndirectInference
+
 
 ϵ = (σ -> Normal(0, σ))
 
@@ -284,7 +369,8 @@ round.(devs, digits=2)
 #######################
 #######################
 
-# indirect inference example 5
+# indirect inference example 5 
+# latent covariates and use of wrapper functions
 # classic example: estimate a true MA model with an AR auxiliary model
 
 
@@ -363,7 +449,7 @@ ii5bbs = iibootstrap(β=ii5b[2], X0=Y0, true_model=y_true_wrapper, aux_estimatio
 #######################
 #######################
 
-# Example 6 - Vector y
+# Example 6 - Vector y with latent covariates
 # let's piggy back off of example 5 and see if we can do a VMA/VAR example
 
 include(joinpath("estimation", "indirect_inference.jl"))
