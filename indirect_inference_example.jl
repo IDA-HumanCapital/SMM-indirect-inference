@@ -447,15 +447,15 @@ est_aux_wrapper = ((Y, X) -> est_aux(Y, p, N))
 y_true_wrapper = ((β, X) -> y_true6(β, N))
 
 # Note that an extensive grid search would be really computationally expensive
-ii5 = indirect_inference(Y0=Y0, X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="grid", β_grid=β_grid)
-# ii5bs = iibootstrap(β=ii5[2], X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="grid", β_grid=β_grid, J_bs=9)
+ii6 = indirect_inference(Y0=Y0, X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="grid", β_grid=β_grid)
+# ii6bs = iibootstrap(β=ii5[2], X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="grid", β_grid=β_grid, J_bs=9)
 
 NLoptOptions = NLopt_options(lb=fill(-0.95,4), ub=fill(0.95,4))
-ii5b = indirect_inference(Y0=Y0, X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="NL", β_init=vecπ, NLoptOptions=NLoptOptions)
-# ii5bbs = iibootstrap(β=ii5b[2], X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="NL", β_init=vecπ, J_bs=9, NLoptOptions=NLoptOptions)
+ii6b = indirect_inference(Y0=Y0, X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="NL", β_init=vecπ, NLoptOptions=NLoptOptions)
+# ii6bbs = iibootstrap(β=ii5b[2], X0=Y0, true_model=y_true_wrapper, aux_estimation=est_aux_wrapper, search="NL", β_init=vecπ, J_bs=9, NLoptOptions=NLoptOptions)
 
-ii5[2]
-ii5b[2]
+ii6[2]
+ii6b[2]
 vecπ
 # looks good
 
