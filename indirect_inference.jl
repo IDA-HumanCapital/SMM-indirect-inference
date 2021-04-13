@@ -1,11 +1,11 @@
 # NOTE:
-# If you want to use structs, etc. please use a wrapper function.
-# This module is in active development, so please talk to me before modifying it.
-
+# If you want to use structs, etc. please use a wrapper function.  See the provided examples for details.
 
 # TO DO:
 # Allow weighting matrix to depend upon b or β
 # Add in MCMC for bayesian estimation
+# Standard errors for the case when the binding function is known
+# Code cleanup
 
 ###########################################
 ###########################################
