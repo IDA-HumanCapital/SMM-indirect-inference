@@ -1,0 +1,1 @@
+This repository provides a julia module for estimation via Indirect Inference and Simulated Method of Moments.  The module can be found in indirect_inference.jl, a short tutorial can be found in indirect_inference_tutorial.jl, and some additional examples can be found in indirect_inference_examples.jl.
