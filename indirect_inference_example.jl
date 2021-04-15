@@ -36,13 +36,11 @@
 # Note that this makes W* = (∂b/∂β)(∂b/∂β)' = [(∂b/∂β)(∂b/∂β)']^{-1} as desired.
 
 
-include(joinpath("estimation", "indirect_inference.jl"))
-
 using Statistics
 using Distributions
 using LinearAlgebra
 using NLopt
-using Main.IndirectInference
+using SMMIndirectInference
 
 
 
@@ -133,13 +131,11 @@ ii1eW = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_a
 # y = β_1 x_1 ^ 2 + β_2 x_2 ^ 2
 
 
-include(joinpath("estimation", "indirect_inference.jl"))
-
 using Statistics
 using Distributions
 using LinearAlgebra
 using NLopt
-using Main.IndirectInference
+using SMMIndirectInference
 
 
 
@@ -215,13 +211,11 @@ ii2bbs = iibootstrap(β=ii2b[2], X0=X0, true_model=y_true, aux_estimation=est_au
 # y = x^β
 
 
-include(joinpath("estimation", "indirect_inference.jl"))
-
 using Statistics
 using Distributions
 using LinearAlgebra
 using NLopt
-using Main.IndirectInference
+using SMMIndirectInference
 
 
 ϵ = (σ -> Normal(0, σ))
@@ -288,13 +282,11 @@ ii3b = indirect_inference(Y0=Y0, X0=X0, true_model=y_true, aux_estimation=est_au
 # y = (x1 + β1)^β2 + β3 (x1 * x2 + β4)^2 + ϵ
 
 
-include(joinpath("estimation", "indirect_inference.jl"))
-
 using Statistics
 using Distributions
 using LinearAlgebra
 using NLopt
-using Main.IndirectInference
+using SMMIndirectInference
 
 
 ϵ = (σ -> Normal(0, σ))
@@ -374,13 +366,11 @@ round.(devs, digits=2)
 # classic example: estimate a true MA model with an AR auxiliary model
 
 
-include(joinpath("estimation", "indirect_inference.jl"))
-
 using Statistics
 using Distributions
 using LinearAlgebra
 using NLopt
-using Main.IndirectInference
+using SMMIndirectInference
 
 ϵ = (σ -> Normal(0, σ))
 
@@ -452,13 +442,11 @@ ii5bbs = iibootstrap(β=ii5b[2], X0=Y0, true_model=y_true_wrapper, aux_estimatio
 # Example 6 - Vector y with latent covariates
 # let's piggy back off of example 5 and see if we can do a VMA/VAR example
 
-include(joinpath("estimation", "indirect_inference.jl"))
-
 using Statistics
 using Distributions
 using LinearAlgebra
 using NLopt
-using Main.IndirectInference
+using SMMIndirectInference
 
 ϵ = (σ -> Normal(0, σ))
 

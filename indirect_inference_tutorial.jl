@@ -1,11 +1,12 @@
 
-include(joinpath("estimation", "indirect_inference.jl"))
+import Pkg
+Pkg.add(url="https://github.com/IDA-HumanCapital/SMM-indirect-inference.git")
 
-using Statistics
+using SMMIndirectInference
 using Distributions
-using LinearAlgebra
-using NLopt
-using Main.IndirectInference
+# using Statistics
+# using LinearAlgebra
+# using NLopt
 
 
 
